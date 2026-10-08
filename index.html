@@ -23,6 +23,15 @@
     #acoes a, #acoes button { font: inherit; font-size: 15px; padding: 12px 22px; border-radius: 12px; border: 0; cursor: pointer; text-decoration: none; }
     #entrar { background: linear-gradient(135deg, #4f46e5, #7c3aed); color: #fff; }
     #denovo { background: #1c1f2a; color: #e6e8ef; }
+    #ativar { position: fixed; inset: 0; display: none; align-items: flex-end; justify-content: center; background: rgba(0,0,0,.55); z-index: 5; }
+    #ativar.on { display: flex; }
+    #ativar .caixa { width: 100%; max-width: 480px; background: #161922; border-radius: 20px 20px 0 0; padding: 22px 20px calc(22px + env(safe-area-inset-bottom)); text-align: center; }
+    #ativar img { width: 56px; height: 56px; border-radius: 14px; }
+    #ativar h2 { margin: 10px 0 6px; font-size: 18px; }
+    #ativar p { margin: 0 0 16px; color: #9aa0b4; font-size: 14px; }
+    #ativar button { display: block; width: 100%; font: inherit; font-size: 15px; padding: 13px; border-radius: 12px; border: 0; margin-top: 8px; cursor: pointer; }
+    #ativarSim { background: linear-gradient(135deg, #4f46e5, #7c3aed); color: #fff; }
+    #ativarNao { background: #1c1f2a; color: #e6e8ef; }
   </style>
 </head>
 <body>
@@ -38,6 +47,15 @@
       <button id="denovo" type="button">Tentar de novo</button>
     </div>
   </div>
+  <div id="ativar">
+    <div class="caixa">
+      <img src="icone-192.png" alt="">
+      <h2>Ativar notificações</h2>
+      <p>Lembretes, contas vencendo e avisos do bot vão chegar neste celular com o ícone do Gestor Pessoal.</p>
+      <button id="ativarSim" type="button">Ativar</button>
+      <button id="ativarNao" type="button">Agora não</button>
+    </div>
+  </div>
   <script>
     var SITE = 'https://script.google.com/macros/s/AKfycbwQimqlUYYDiTUtUSOk_wazLB_qvNQKsinJoKdSlb0_oy8Jgp8RBlMenOJaptthp4uFIg/exec';
     var ESPERA_MS = 20000; // sem aviso do site nesse tempo: provavelmente o login do Google venceu
@@ -45,6 +63,7 @@
     var site = document.getElementById('site'), capa = document.getElementById('capa');
     var msg = document.getElementById('msg'), acoes = document.getElementById('acoes');
     var carregou = false, timer;
+    var siteWin = null, siteOrigem = '', chavePush = '';
     document.getElementById('entrar').href = url;
 
     function abrir() {
@@ -58,11 +77,47 @@
         acoes.classList.add('on');
       }, ESPERA_MS);
     }
-    // O site avisa quando carregou (só aceita mensagem vinda das páginas do Apps Script).
+    // O site avisa quando carregou e pede para ativar notificações (só aceita mensagem vinda das páginas do Apps Script).
     window.addEventListener('message', function (e) {
-      if (e.data !== 'painel-ok' || !/\.googleusercontent\.com$|^https:\/\/script\.google\.com$/.test(e.origin)) return;
-      carregou = true; clearTimeout(timer); capa.classList.add('fora');
+      if (!/\.googleusercontent\.com$|^https:\/\/script\.google\.com$/.test(e.origin)) return;
+      if (e.data === 'painel-ok') {
+        carregou = true; clearTimeout(timer); capa.classList.add('fora');
+        siteWin = e.source; siteOrigem = e.origin; contarEstado();
+      } else if (e.data && e.data.tipo === 'push-ativar' && e.source === siteWin) {
+        chavePush = String(e.data.chave || ''); document.getElementById('ativar').classList.add('on');
+      }
     });
+
+    // ===== Notificações: o celular se inscreve aqui; a inscrição vai para o site, que entrega ao bot =====
+    function paraSite(m) { if (siteWin) siteWin.postMessage(m, siteOrigem); }
+    function temPush() { return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window; }
+    // Conta ao site se as notificações estão ativas (e manda a inscrição, para ele atualizar se mudou).
+    function contarEstado() {
+      if (!temPush()) return paraSite({ tipo: 'app', push: 'sem-suporte' });
+      if (Notification.permission === 'denied') return paraSite({ tipo: 'app', push: 'negado' });
+      navigator.serviceWorker.ready.then(function (reg) { return reg.pushManager.getSubscription(); }).then(function (s) {
+        paraSite(s && Notification.permission === 'granted' ? { tipo: 'app', push: 'ativo', sub: JSON.stringify(s) } : { tipo: 'app', push: 'pedir' });
+      }).catch(function () { paraSite({ tipo: 'app', push: 'pedir' }); });
+    }
+    function bytesDaChave(b64) {
+      var s = atob(b64.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((b64.length + 3) % 4));
+      return Uint8Array.from(s, function (c) { return c.charCodeAt(0); });
+    }
+    function ativarPush() {
+      document.getElementById('ativar').classList.remove('on');
+      if (!temPush()) return paraSite({ tipo: 'push-estado', push: 'sem-suporte' });
+      Notification.requestPermission().then(function (p) {
+        if (p !== 'granted') return paraSite({ tipo: 'push-estado', push: p === 'denied' ? 'negado' : 'pedir' });
+        return navigator.serviceWorker.ready.then(function (reg) {
+          // inscrição nova sempre (se a chave do bot mudou, a antiga não vale mais)
+          return reg.pushManager.getSubscription().then(function (s) { return s && s.unsubscribe(); }).then(function () {
+            return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: bytesDaChave(chavePush) });
+          });
+        }).then(function (s) { paraSite({ tipo: 'push-inscricao', sub: JSON.stringify(s) }); });
+      }).catch(function (err) { paraSite({ tipo: 'push-erro', msg: 'Não consegui ativar: ' + (err && err.message || err) }); });
+    }
+    document.getElementById('ativarSim').onclick = ativarPush;
+    document.getElementById('ativarNao').onclick = function () { document.getElementById('ativar').classList.remove('on'); };
     document.getElementById('denovo').onclick = abrir;
     // Voltou do login no Chrome: tenta de novo sozinho.
     document.addEventListener('visibilitychange', function () { if (!document.hidden && !carregou && acoes.classList.contains('on')) abrir(); });
