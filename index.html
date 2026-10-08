@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Gestor Pessoal</title>
+  <meta name="theme-color" content="#0d0f14">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" sizes="192x192" href="icone-192.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <style>
+    html, body { margin: 0; height: 100%; background: #0d0f14; color: #e6e8ef; font-family: system-ui, -apple-system, Roboto, sans-serif; overflow: hidden; }
+    iframe { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; background: #0d0f14; }
+    #capa { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 24px; text-align: center; background: #0d0f14; transition: opacity .3s; }
+    #capa.fora { opacity: 0; pointer-events: none; }
+    #capa img { width: 96px; height: 96px; border-radius: 24px; }
+    #capa h1 { margin: 0; font-size: 22px; }
+    #msg { margin: 0; color: #9aa0b4; font-size: 15px; max-width: 320px; }
+    #acoes { display: none; flex-direction: column; gap: 10px; margin-top: 6px; }
+    #acoes.on { display: flex; }
+    #acoes a, #acoes button { font: inherit; font-size: 15px; padding: 12px 22px; border-radius: 12px; border: 0; cursor: pointer; text-decoration: none; }
+    #entrar { background: linear-gradient(135deg, #4f46e5, #7c3aed); color: #fff; }
+    #denovo { background: #1c1f2a; color: #e6e8ef; }
+  </style>
+</head>
+<body>
+  <!-- Abre o Gestor Pessoal (web app do Google Apps Script) em tela cheia. Esta página não tem dados:
+       o acesso continua exigindo a conta Google do dono e a senha de 4 dígitos do site. -->
+  <iframe id="site" title="Gestor Pessoal" allow="clipboard-write; camera; microphone"></iframe>
+  <div id="capa">
+    <img src="icone-192.png" alt="">
+    <h1>Gestor Pessoal</h1>
+    <p id="msg">Carregando…</p>
+    <div id="acoes">
+      <a id="entrar" target="_blank" rel="noopener">Entrar no Google</a>
+      <button id="denovo" type="button">Tentar de novo</button>
+    </div>
+  </div>
+  <script>
+    var SITE = 'https://script.google.com/macros/s/AKfycbwQimqlUYYDiTUtUSOk_wazLB_qvNQKsinJoKdSlb0_oy8Jgp8RBlMenOJaptthp4uFIg/exec';
+    var ESPERA_MS = 20000; // sem aviso do site nesse tempo: provavelmente o login do Google venceu
+    var url = SITE + location.search;
+    var site = document.getElementById('site'), capa = document.getElementById('capa');
+    var msg = document.getElementById('msg'), acoes = document.getElementById('acoes');
+    var carregou = false, timer;
+    document.getElementById('entrar').href = url;
+
+    function abrir() {
+      carregou = false; capa.classList.remove('fora'); acoes.classList.remove('on');
+      msg.textContent = 'Carregando…';
+      site.src = url;
+      clearTimeout(timer);
+      timer = setTimeout(function () {
+        if (carregou) return;
+        msg.textContent = 'Não consegui abrir. Se o login do Google venceu, entre pelo botão abaixo e depois volte aqui.';
+        acoes.classList.add('on');
+      }, ESPERA_MS);
+    }
+    // O site avisa quando carregou (só aceita mensagem vinda das páginas do Apps Script).
+    window.addEventListener('message', function (e) {
+      if (e.data !== 'painel-ok' || !/\.googleusercontent\.com$|^https:\/\/script\.google\.com$/.test(e.origin)) return;
+      carregou = true; clearTimeout(timer); capa.classList.add('fora');
+    });
+    document.getElementById('denovo').onclick = abrir;
+    // Voltou do login no Chrome: tenta de novo sozinho.
+    document.addEventListener('visibilitychange', function () { if (!document.hidden && !carregou && acoes.classList.contains('on')) abrir(); });
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
+    abrir();
+  </script>
+</body>
+</html>
