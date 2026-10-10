@@ -9,10 +9,10 @@ self.addEventListener('push', (e) => {
   let d = {};
   try { d = e.data ? e.data.json() : {}; } catch (x) { d = { texto: e.data ? e.data.text() : '' }; }
   const base = self.registration.scope;
-  e.waitUntil(self.registration.showNotification(d.titulo || 'Gestor Pessoal', {
+  e.waitUntil(self.registration.showNotification(d.titulo || 'Alfa IA', {
     body: d.texto || '',
-    icon: new URL('icone-192.png', base).href,
-    badge: new URL('badge-96.png', base).href,
+    icon: new URL('icone-192.png?v=2', base).href,
+    badge: new URL('badge-96.png?v=2', base).href,
     data: { url: new URL(d.url || './', base).href }
   }));
 });
