@@ -1,6 +1,6 @@
-# Alfa IA (app, antes Gestor Pessoal)
+# Alpha IA (app, antes Gestor Pessoal)
 
-Casca de app (PWA) do Alfa IA (nome desde 10/10/2026; antes Gestor Pessoal): nome, ícone e tela cheia no celular.
+Casca de app (PWA) do Alpha IA (nome desde 10/10/2026; antes Gestor Pessoal; grafia com ph): nome, ícone e tela cheia no celular.
 Ela só abre, por dentro, o web app do Google Apps Script. **Aqui não há dados, senhas nem chaves**:
 o acesso continua exigindo a conta Google do dono e a senha de 4 dígitos do site.
 
@@ -14,8 +14,8 @@ O código do site e do bot fica no repositório privado `gestao-de-contas`
 | `index.html` | abre o site num iframe em tela cheia; se em 20 s o site não avisar que carregou (`postMessage('painel-ok')`), mostra "Entrar no Google" |
 | `manifest.json` | nome, cores, ícones e modo app (`standalone`) |
 | `sw.js` | service worker (o Chrome exige para instalar): mostra as notificações que o bot manda (`push`) e abre o app ao tocar; não guarda cache |
-| `icone-*.png`, `apple-touch-icon.png` | ícone da cabeça do Alfa (o `maskable` é o recorte que o Android usa) |
-| `badge-96.png` | silhueta branca da cabeça do Alfa para a barra de notificações |
+| `icone-*.png`, `apple-touch-icon.png` | ícone da cabeça do Alpha (o `maskable` é o recorte que o Android usa) |
+| `badge-96.png` | silhueta branca da cabeça do Alpha para a barra de notificações |
 
 ## Instalar no celular
 
